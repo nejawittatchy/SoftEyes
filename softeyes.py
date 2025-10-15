@@ -198,6 +198,23 @@ def open_settings(icon, item):
 
     root.destroy()
 
+
+def open_about(icon, item):
+    """Show an About dialog with developer details."""
+    dev_info = (
+        "SoftEyes v1\n"
+        "Developer: Neja Wittatchy\n"
+        "Email: nejawittatchy@gmail.com\n"
+        "Website: https://nejawittatchy.github.io/\n\n"
+        "Helps remind you to rest your eyes.\n"
+        "Thank you for using SoftEyes!"
+    )
+
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo("About SoftEyes", dev_info)
+    root.destroy()
+
 def quit_app(icon, item):
     print("DEBUG: Quitting application...")
     icon.stop()
@@ -212,6 +229,7 @@ def setup_tray():
     menu = (
         item(lambda item: "Pause" if not paused else "Resume", toggle_pause),
         item('Snooze 1 Hour', snooze),
+        item('About', open_about),
         item('Settings', open_settings),
         item('Quit', quit_app)
     )
