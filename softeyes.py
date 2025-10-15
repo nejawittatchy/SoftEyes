@@ -9,6 +9,14 @@ from pystray import MenuItem as item
 import sys
 import os
 import shutil
+import webbrowser
+from tkinter import ttk
+from PIL import ImageDraw, ImageFont, ImageTk
+
+# Application info
+APP_VERSION = "1.0.0"
+APP_WEBSITE = "https://github.com/nejawittatchy/SoftEyes"
+APP_EMAIL = "nejawittatchy@example.com"
 
 # Default settings
 break_interval = 20 * 60  # 1 minute in seconds for testing
@@ -200,20 +208,78 @@ def open_settings(icon, item):
 
 
 def open_about(icon, item):
-    """Show an About dialog with developer details."""
-    dev_info = (
-        "SoftEyes v1\n"
-        "Developer: Neja Wittatchy\n"
-        "Email: nejawittatchy@gmail.com\n"
-        "Website: https://nejawittatchy.github.io/\n\n"
-        "Helps remind you to rest your eyes.\n"
-        "Thank you for using SoftEyes!"
-    )
-
-    root = tk.Tk()
-    root.withdraw()
-    messagebox.showinfo("About SoftEyes", dev_info)
-    root.destroy()
+    """Show an About dialog with developer details and clickable links."""
+    about_window = tk.Toplevel()
+    about_window.title("About SoftEyes")
+    about_window.geometry("400x500")
+    about_window.resizable(False, False)
+    
+    # Style
+    style = ttk.Style()
+    style.configure("Link.TLabel", foreground="blue", cursor="hand2")
+    
+    # Create a main frame with padding
+    main_frame = ttk.Frame(about_window, padding="20")
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Title
+    title_label = ttk.Label(main_frame, text="SoftEyes", font=("Helvetica", 24, "bold"))
+    title_label.pack(pady=(0, 10))
+    
+    version_label = ttk.Label(main_frame, text=f"Version {APP_VERSION}")
+    version_label.pack()
+    
+    # Description
+    desc_text = "Your friendly eye care companion that helps\nremind you to take regular breaks."
+    desc_label = ttk.Label(main_frame, text=desc_text, justify=tk.CENTER)
+    desc_label.pack(pady=(10, 20))
+    
+    # Developer info with clickable links
+    dev_frame = ttk.Frame(main_frame)
+    dev_frame.pack(fill=tk.X, pady=(0, 20))
+    
+    ttk.Label(dev_frame, text="Developer: Neja Wittatchy").pack()
+    
+    # Email link
+    email_label = ttk.Label(dev_frame, text=APP_EMAIL, style="Link.TLabel")
+    email_label.pack()
+    email_label.bind("<Button-1>", lambda e: webbrowser.open(f"mailto:{APP_EMAIL}"))
+    
+    # Website link
+    website_label = ttk.Label(dev_frame, text="Visit Website", style="Link.TLabel")
+    website_label.pack()
+    website_label.bind("<Button-1>", lambda e: webbrowser.open(APP_WEBSITE))
+    
+    # Add a separator
+    ttk.Separator(main_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+    
+    # Features
+    features_text = """
+    Key Features:
+    • Smart break reminders every 20 minutes
+    • Gentle screen blur during breaks
+    • Customizable break duration
+    • System tray integration
+    • Startup with Windows option
+    """
+    features_label = ttk.Label(main_frame, text=features_text, justify=tk.LEFT)
+    features_label.pack(pady=10)
+    
+    # Close button at bottom
+    ttk.Button(main_frame, text="Close", command=about_window.destroy).pack(pady=(20, 0))
+    
+    # Center the window on screen
+    about_window.update_idletasks()
+    width = about_window.winfo_width()
+    height = about_window.winfo_height()
+    x = (about_window.winfo_screenwidth() // 2) - (width // 2)
+    y = (about_window.winfo_screenheight() // 2) - (height // 2)
+    about_window.geometry(f"+{x}+{y}")
+    
+    # Make window modal
+    about_window.transient(about_window.master)
+    about_window.grab_set()
+    about_window.focus_set()
 
 def quit_app(icon, item):
     print("DEBUG: Quitting application...")
