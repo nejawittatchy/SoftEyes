@@ -20,8 +20,8 @@ toast = ToastNotifier()
 
 # Application info
 APP_VERSION = "1.0.0"
-APP_WEBSITE = "https://github.com/nejawittatchy/SoftEyes"
-APP_EMAIL = "nejawittatchy@example.com"
+APP_WEBSITE = "https://nejawittatchy.github.io/"
+APP_EMAIL = "neja.developer@gmail.com"
 
 # Settings management
 import json
@@ -669,7 +669,7 @@ def open_about(icon, item):
         email.pack(pady=2)
         email.bind("<Button-1>", lambda e: webbrowser.open(f"mailto:{APP_EMAIL}"))
         
-        web = ttk.Label(dev, text="Visit Website", style="Link.TLabel")
+        web = ttk.Label(dev, text="Visit Portfolio", style="Link.TLabel")
         web.pack(pady=2)
         web.bind("<Button-1>", lambda e: webbrowser.open(APP_WEBSITE))
         
