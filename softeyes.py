@@ -14,6 +14,8 @@ from tkinter import ttk
 from PIL import ImageDraw, ImageFont, ImageTk
 from win10toast import ToastNotifier
 from screeninfo import get_monitors
+import pygame
+import numpy as np
 
 # Initialize toast notifier
 toast = ToastNotifier()
@@ -33,6 +35,9 @@ import win32process
 import psutil
 import re
 
+# Initialize pygame mixer for audio
+pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+
 # Default settings
 DEFAULT_SETTINGS = {
     'break_interval': 20 * 60,  # 20 minutes in seconds
@@ -43,6 +48,8 @@ DEFAULT_SETTINGS = {
     'blur_intensity': 8,        # Gaussian blur radius
     'dim_screen': True,        # Dim screen during break
     'auto_pause': True,        # Auto-pause during video calls
+    'break_music_enabled': True,  # Play calming music during breaks
+    'break_music_volume': 0.3,    # Volume (0.0 to 1.0)
     'auto_pause_apps': [       # Apps that trigger auto-pause
         'zoom',
         'teams',
@@ -132,6 +139,63 @@ def create_tray_image(text):
     
     return image
 
+def generate_calming_tone(duration=20, frequency=432):
+    """Generate a calming ambient tone at 432 Hz (healing frequency)."""
+    sample_rate = 44100
+    n_samples = int(sample_rate * duration)
+    
+    # Generate a soft sine wave with gentle harmonics
+    t = np.linspace(0, duration, n_samples, False)
+    
+    # Base tone at 432 Hz (known as healing frequency)
+    tone = np.sin(2 * np.pi * frequency * t)
+    
+    # Add soft harmonics for richness
+    tone += 0.3 * np.sin(2 * np.pi * (frequency * 2) * t)  # Octave
+    tone += 0.2 * np.sin(2 * np.pi * (frequency * 3) * t)  # Fifth
+    
+    # Apply fade in/out for smooth transitions
+    fade_duration = int(sample_rate * 2)  # 2 second fade
+    fade_in = np.linspace(0, 1, fade_duration)
+    fade_out = np.linspace(1, 0, fade_duration)
+    tone[:fade_duration] *= fade_in
+    tone[-fade_duration:] *= fade_out
+    
+    # Normalize and convert to 16-bit
+    tone = (tone * 32767 * 0.5).astype(np.int16)  # 50% max volume
+    
+    # Stereo (duplicate for both channels)
+    stereo_tone = np.column_stack((tone, tone))
+    
+    return pygame.sndarray.make_sound(stereo_tone)
+
+def play_break_music():
+    """Play calming music during break."""
+    if not current_settings.get('break_music_enabled', True):
+        return
+    
+    try:
+        duration = break_duration
+        sound = generate_calming_tone(duration=duration, frequency=432)
+        
+        # Set volume from settings
+        volume = current_settings.get('break_music_volume', 0.3)
+        sound.set_volume(volume)
+        
+        # Play the sound
+        sound.play()
+        print("DEBUG: Playing calming break music")
+    except Exception as e:
+        print(f"DEBUG: Failed to play break music: {e}")
+
+def stop_break_music():
+    """Stop any playing break music."""
+    try:
+        pygame.mixer.stop()
+        print("DEBUG: Stopped break music")
+    except Exception as e:
+        print(f"DEBUG: Failed to stop music: {e}")
+
 def take_blurred_screenshots():
     """Take and blur screenshots of all monitors."""
     print("DEBUG: Taking blurred screenshots for all monitors...")
@@ -194,6 +258,9 @@ def show_blur_overlay():
     """Show blur overlay on all monitors."""
     print("DEBUG: Showing blur overlay on all monitors...")
     
+    # Start playing calming music
+    play_break_music()
+    
     # Create a hidden root window to manage overlays
     root = tk.Tk()
     root.withdraw()
@@ -212,10 +279,17 @@ def show_blur_overlay():
     if overlays:
         print(f"DEBUG: Created {len(overlays)} overlay windows")
         print(f"DEBUG: Overlays will close in {break_duration} seconds")
-        root.after(break_duration * 1000 + 500, root.destroy)  # Destroy root after overlays
+        
+        # Stop music and destroy windows after break
+        def cleanup():
+            stop_break_music()
+            root.destroy()
+        
+        root.after(break_duration * 1000 + 500, cleanup)
         root.mainloop()
     else:
         print("DEBUG: No overlays created, destroying root")
+        stop_break_music()
         root.destroy()
 
 def format_time_remaining(seconds):
@@ -551,6 +625,40 @@ def open_settings(icon, item):
         av = tk.BooleanVar(value=current_settings['auto_pause'])
         ttk.Checkbutton(af, text="Auto pause during video calls", variable=av).pack(anchor="w")
         
+        # Break Music
+        ttk.Label(frame, text="Break Music", style="H.TLabel").pack(anchor="w", pady=(0,10))
+        mf = ttk.LabelFrame(frame, padding=10)
+        mf.pack(fill="x", pady=(0,15))
+        mv = tk.BooleanVar(value=current_settings.get('break_music_enabled', True))
+        ttk.Checkbutton(mf, text="Play calming music during breaks", variable=mv).pack(anchor="w")
+        
+        # Volume slider
+        vol_frame = ttk.Frame(mf)
+        vol_frame.pack(fill="x", pady=5)
+        ttk.Label(vol_frame, text="Volume:").pack(side="left")
+        volv = tk.DoubleVar(value=current_settings.get('break_music_volume', 0.3))
+        vol_slider = ttk.Scale(vol_frame, from_=0, to=1, variable=volv, orient="horizontal")
+        vol_slider.pack(side="left", fill="x", expand=True, padx=5)
+        vol_label = ttk.Label(vol_frame, text=f"{int(volv.get()*100)}%")
+        vol_label.pack(side="left")
+        
+        # Update volume label when slider moves
+        def update_vol_label(*args):
+            vol_label.config(text=f"{int(volv.get()*100)}%")
+        volv.trace('w', update_vol_label)
+        
+        # Test sound button
+        def test_sound():
+            try:
+                # Generate a short 5-second test tone
+                test_tone = generate_calming_tone(duration=5, frequency=432)
+                test_tone.set_volume(volv.get())
+                test_tone.play()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to play test sound: {e}")
+        
+        ttk.Button(mf, text="🔊 Test Sound", command=test_sound).pack(anchor="w", pady=(5,0))
+        
         # Buttons
         bf2 = ttk.Frame(frame)
         bf2.pack(fill="x", pady=(15,0))
@@ -574,7 +682,9 @@ def open_settings(icon, item):
                     'blur_intensity': bv.get(),
                     'dim_screen': dev.get(),
                     'start_with_windows': sv.get(),
-                    'auto_pause': av.get()
+                    'auto_pause': av.get(),
+                    'break_music_enabled': mv.get(),
+                    'break_music_volume': volv.get()
                 })
                 
                 if sv.get():
